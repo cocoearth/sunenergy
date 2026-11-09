@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>태양 에너지의 생성과 전환 — 통합과학2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#171717; --body:#4d4d4d; --mute:#8f8f8f; --faint:#a1a1a1;
+    --hairline:#ebebeb; --hairline-soft:#f2f2f2;
+    --canvas:#fafafa; --elevated:#ffffff;
+    --link:#0070f3; --link-soft:#d3e5ff;
+    --error:#ee0000; --warning:#f5a623; --warning-soft:#ffefcf;
+    --violet:#7928ca; --cyan:#50e3c2; --pink:#ff0080;
+    --sans:"Geist","Noto Sans KR","Pretendard","Apple SD Gothic Neo","Malgun Gothic",Arial,sans-serif;
+    --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{word-break:keep-all;width:100%;height:100%;overflow:hidden;background:#e9e9e9;font-family:var(--sans);color:var(--ink)}
+  #stage{position:absolute;width:1920px;height:1080px;background:var(--canvas);transform-origin:0 0;overflow:hidden}
+  .scene{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .45s ease}
+  .scene.active{opacity:1;pointer-events:auto}
+
+  /* 위: 제목 */
+  .head{position:absolute;left:110px;top:56px;right:110px}
+  .eyebrow{font-family:var(--mono);font-size:24px;font-weight:500;color:var(--mute);letter-spacing:.08em;text-transform:uppercase}
+  .title{font-size:66px;font-weight:600;letter-spacing:-1.8px;line-height:1.15;margin-top:10px}
+
+  /* 가운데: 그림 */
+  .fig{position:absolute;left:0;top:200px;width:1920px;height:680px}
+  .fig svg{position:absolute;inset:0;width:1920px;height:680px;overflow:visible}
+
+  /* 아래: 문장 */
+  .caption{position:absolute;left:110px;right:300px;top:890px;height:140px;display:flex;align-items:center;
+    font-size:40px;font-weight:500;line-height:1.42;letter-spacing:-.6px;border-top:1px solid var(--hairline);padding-top:18px}
+  .caption .k{color:var(--link);font-weight:700}
+  .caption span.txt{transition:opacity .3s ease}
+
+  /* 오른쪽 아래: 번호 */
+  #pager{position:absolute;right:110px;bottom:44px;text-align:right;font-family:var(--mono);font-size:30px;font-weight:500;color:var(--ink)}
+  #dots{display:flex;gap:10px;justify-content:flex-end;margin-bottom:14px}
+  #dots i{width:12px;height:12px;border-radius:9999px;background:var(--hairline);display:block}
+  #dots i.on{background:var(--ink)}
+  #navbtns{position:absolute;right:110px;top:906px;display:flex;gap:10px}
+  .sq{width:58px;height:50px;border-radius:6px;border:1px solid var(--hairline);background:var(--elevated);font-size:26px;color:var(--ink);cursor:pointer;font-family:var(--mono)}
+  .sq:hover{border-color:var(--ink)}
+  .pill{position:absolute;height:56px;padding:0 26px;border-radius:100px;border:none;background:var(--ink);color:#fff;font-family:var(--sans);font-size:26px;font-weight:500;cursor:pointer}
+
+  /* 장면 1: 에너지 카드 */
+  .grid{position:absolute;left:110px;right:110px;top:6px;bottom:20px;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:30px}
+  .card{background:var(--elevated);border:1px solid var(--hairline);border-radius:16px;padding:28px 32px;display:flex;flex-direction:column;
+    opacity:.13;transform:translateY(14px);transition:opacity .45s ease,transform .45s ease,border-color .3s,box-shadow .3s}
+  .card.show{opacity:1;transform:none}
+  .card.now{border-color:var(--link);box-shadow:0 2px 2px rgba(0,0,0,.04),0 8px 16px -4px rgba(0,112,243,.18)}
+  .card .row{display:flex;align-items:center;gap:22px}
+  .card .row svg{width:86px;height:86px;flex:none;position:static}
+  .card h3{font-size:46px;font-weight:700;letter-spacing:-1.2px}
+  .card p{font-size:30px;line-height:1.38;color:var(--body);margin-top:16px;letter-spacing:-.4px;flex:1}
+  .card .ex{align-self:flex-start;margin-top:10px;font-size:27px;font-weight:500;color:var(--ink);background:var(--hairline-soft);border-radius:64px;padding:6px 20px}
+  .card .ex b{font-family:var(--mono);color:var(--link);font-weight:500;margin-right:8px}
+
+  /* SVG 공통 */
+  .lbl{font-family:var(--sans);font-size:34px;font-weight:600;fill:var(--ink);letter-spacing:-.5px}
+  .lbl-s{font-family:var(--sans);font-size:27px;font-weight:500;fill:var(--body)}
+  .lbl-b{font-family:var(--sans);font-size:34px;font-weight:700;fill:var(--link)}
+  .mono{font-family:var(--mono);font-weight:500}
+  .warn{font-family:var(--sans);font-size:26px;font-weight:600;fill:var(--error)}
+  .panel{opacity:0;transition:opacity .45s ease}
+  .panel.show{opacity:1}
+  .flow{stroke-dasharray:18 14;animation:flow 1.1s linear infinite}
+  @keyframes flow{to{stroke-dashoffset:-32}}
+  .pulse{animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+  .blink{animation:blink 1s ease-in-out infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* 장면 3: 흐름 지도 */
+  .node{opacity:.12;transition:opacity .45s ease}
+  .node.show{opacity:1}
+  .node rect.box{fill:var(--elevated);stroke:var(--hairline);stroke-width:2;transition:stroke .3s}
+  .node.now rect.box{stroke:var(--link);stroke-width:4}
+  .arr{opacity:0;transition:opacity .45s ease}
+  .arr.show{opacity:1}
+
+  /* 움직임 추가 */
+  .fig canvas{position:absolute;inset:0;width:1920px;height:680px}
+  .w{fill:#ffffff}
+  .w2{fill:#a1a1a1}
+  .pop{transform-box:fill-box;transform-origin:center;opacity:0}
+  .panel.show .pop{animation:pop .55s cubic-bezier(.3,1.6,.5,1) var(--d) both}
+  @keyframes pop{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:scale(1)}}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- ============ 장면 1 : 여러 가지 에너지 ============ -->
+  <section class="scene" id="s1">
+    <div class="head">
+      <div class="eyebrow">Scene 01 · 에너지의 형태</div>
+      <h1 class="title">여러 가지 에너지</h1>
+    </div>
+    <div class="fig">
+      <div class="grid">
+        <!-- 빛에너지 -->
+        <div class="card" data-show="1">
+          <div class="row">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="40" r="30" fill="#ffefcf"/>
+              <path d="M50 14a24 24 0 0 0-14 43.5c3 2.2 4 5 4 8.5h20c0-3.5 1-6.3 4-8.5A24 24 0 0 0 50 14z" fill="#f5a623"/>
+              <rect x="40" y="70" width="20" height="7" rx="2" fill="#171717"/>
+              <rect x="42" y="80" width="16" height="6" rx="2" fill="#171717"/>
+              <g stroke="#f5a623" stroke-width="4" stroke-linecap="round">
+                <line x1="50" y1="2" x2="50" y2="8"/><line x1="12" y1="38" x2="18" y2="38"/><line x1="82" y1="38" x2="88" y2="38"/>
+                <line x1="23" y1="13" x2="27" y2="17"/><line x1="77" y1="13" x2="73" y2="17"/>
+              </g>
+            </svg>
+            <h3>빛에너지</h3>
+          </div>
+          <p>빛의 형태로 전달되는 에너지</p>
+          <div class="ex"><b>예</b>햇빛, 전등 빛</div>
+        </div>
+        <!-- 열에너지 -->
+        <div class="card" data-show="2">
+          <div class="row">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <defs><linearGradient id="gFlame" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff4d4d"/><stop offset="1" stop-color="#f9cb28"/></linearGradient></defs>
+              <path d="M50 6c4 16 24 26 24 50a24 24 0 0 1-48 0c0-12 6-20 12-26 0 10 4 16 9 18-4-14 0-30 3-42z" fill="url(#gFlame)"/>
+              <path d="M50 52c3 7 12 11 12 22a12 12 0 0 1-24 0c0-7 6-12 12-22z" fill="#ffefcf"/>
+            </svg>
+            <h3>열에너지</h3>
+          </div>
+          <p>온도가 다른 두 물체 사이에서 이동하며 물질의 온도나 상태를 변화시키는 에너지</p>
+          <div class="ex"><b>예</b>난로, 뜨거운 물</div>
+        </div>
+        <!-- 화학 에너지 -->
+        <div class="card" data-show="3">
+          <div class="row">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <rect x="22" y="18" width="46" height="72" rx="6" fill="#d8ccf1" stroke="#7928ca" stroke-width="4"/>
+              <rect x="30" y="28" width="30" height="20" rx="3" fill="#ffffff" stroke="#7928ca" stroke-width="3"/>
+              <path d="M68 40h8a6 6 0 0 1 6 6v26a5 5 0 0 0 10 0V34l-8-8" fill="none" stroke="#7928ca" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M45 58c4 6 7 9 7 14a7 7 0 0 1-14 0c0-5 3-8 7-14z" fill="#7928ca"/>
+            </svg>
+            <h3>화학 에너지</h3>
+          </div>
+          <p>물질에 저장되어 있는 에너지 (화학 반응이 일어날 때 흡수·방출)</p>
+          <div class="ex"><b>예</b>음식물, 석유, 전지</div>
+        </div>
+        <!-- 전기 에너지 -->
+        <div class="card" data-show="4">
+          <div class="row">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <rect x="30" y="30" width="40" height="34" rx="8" fill="#d3e5ff" stroke="#0070f3" stroke-width="4"/>
+              <line x1="40" y1="12" x2="40" y2="30" stroke="#0070f3" stroke-width="6" stroke-linecap="round"/>
+              <line x1="60" y1="12" x2="60" y2="30" stroke="#0070f3" stroke-width="6" stroke-linecap="round"/>
+              <path d="M50 64v10c0 10-18 8-18 18" fill="none" stroke="#0070f3" stroke-width="5" stroke-linecap="round"/>
+              <path d="M53 37l-8 11h8l-4 10 10-13h-8l4-8z" fill="#0070f3"/>
+            </svg>
+            <h3>전기 에너지</h3>
+          </div>
+          <p>전류가 흐를 때 전달되는 에너지</p>
+          <div class="ex"><b>예</b>전기 기구를 작동시키는 전류</div>
+        </div>
+        <!-- 역학적 에너지 -->
+        <div class="card" data-show="5">
+          <div class="row">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <path d="M8 86 Q 40 2 78 70" fill="none" stroke="#a1a1a1" stroke-width="3.5" stroke-dasharray="6 6"/>
+              <line x1="4" y1="90" x2="96" y2="90" stroke="#171717" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="80" cy="72" r="12" fill="#50e3c2" stroke="#171717" stroke-width="3"/>
+              <path d="M70 56l8 6-10 2" fill="none" stroke="#171717" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <h3>역학적 에너지</h3>
+          </div>
+          <p>물체의 운동 에너지와 위치 에너지의 합</p>
+          <div class="ex"><b>예</b>굴러가는 공, 높은 곳의 물</div>
+        </div>
+        <!-- 핵에너지 -->
+        <div class="card" data-show="6">
+          <div class="row">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <g fill="none" stroke="#ff0080" stroke-width="3.5">
+                <ellipse cx="50" cy="50" rx="42" ry="15"/>
+                <ellipse cx="50" cy="50" rx="42" ry="15" transform="rotate(60 50 50)"/>
+                <ellipse cx="50" cy="50" rx="42" ry="15" transform="rotate(-60 50 50)"/>
+              </g>
+              <circle cx="46" cy="47" r="7" fill="#ff4d4d"/><circle cx="55" cy="47" r="7" fill="#8f8f8f"/>
+              <circle cx="46" cy="56" r="7" fill="#8f8f8f"/><circle cx="55" cy="56" r="7" fill="#ff4d4d"/>
+            </svg>
+            <h3>핵에너지</h3>
+          </div>
+          <p>원자핵이 핵반응할 때 발생하는 에너지</p>
+          <div class="ex"><b>예</b>핵발전, 태양 중심부의 핵융합</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption"><span class="txt"></span></div>
+  </section>
+
+  <!-- ============ 장면 2 : 태양 에너지 (태양 → 지구) ============ -->
+  <section class="scene" id="s2">
+    <div class="head">
+      <div class="eyebrow">Scene 02 · 지구의 에너지 원천</div>
+      <h1 class="title">태양 에너지</h1>
+    </div>
+    <div class="fig">
+      <svg viewBox="0 0 1920 680" aria-label="태양에서 지구로 가는 태양 에너지">
+        <defs>
+          <radialGradient id="gSun2" cx="50%" cy="50%" r="50%">
+            <stop offset="0" stop-color="#fff6c8"/><stop offset=".55" stop-color="#f9cb28"/><stop offset="1" stop-color="#ff7a3d"/>
+          </radialGradient>
+          <marker id="mAmber2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#f5a623"/></marker>
+          <clipPath id="cE1"><circle cx="1560" cy="320" r="70"/></clipPath>
+        </defs>
+        <circle cx="470" cy="320" r="250" fill="url(#gSun2)"/>
+        <text class="lbl" x="470" y="332" text-anchor="middle">태양</text>
+        <circle cx="1560" cy="320" r="70" fill="#0070f3"/>
+        <g clip-path="url(#cE1)">
+          <path d="M1515 285c20-10 35 5 25 22s-30 8-38 22-5 30 10 34c-35-6-50-48-30-74z" fill="#50e3c2"/>
+          <path d="M1580 262c18 4 30 22 22 30s-20-6-28-2-2 26 14 30c-20 2-36-14-30-34 2-10 10-22 22-24z" fill="#50e3c2"/>
+        </g>
+        <text class="lbl" x="1560" y="445" text-anchor="middle">지구</text>
+        <g stroke="#f5a623" stroke-width="7" fill="none" marker-end="url(#mAmber2)">
+          <line class="flow" x1="760" y1="250" x2="1460" y2="285"/>
+          <line class="flow" x1="760" y1="320" x2="1460" y2="320"/>
+          <line class="flow" x1="760" y1="390" x2="1460" y2="355"/>
+        </g>
+        <text class="lbl-s" x="1110" y="215" text-anchor="middle">태양 에너지</text>
+        <g class="panel" data-from="1" font-family="Geist,'Noto Sans KR',sans-serif" font-size="26" font-weight="500" fill="#4d4d4d" text-anchor="middle">
+          <rect x="1455" y="480" width="210" height="46" rx="23" fill="#f2f2f2"/><text x="1560" y="512">바람 · 구름 · 비</text>
+          <rect x="1455" y="536" width="210" height="46" rx="23" fill="#f2f2f2"/><text x="1560" y="568">생명 활동</text>
+        </g>
+        <text class="warn" x="1860" y="660" text-anchor="end">※ 크기와 거리는 실제 비율과 다릅니다</text>
+      </svg>
+    </div>
+    <div class="caption"><span class="txt"></span></div>
+  </section>
+
+  <!-- ============ 장면 3 : 태양 중심부의 수소 핵융합 ============ -->
+  <section class="scene" id="s3">
+    <div class="head">
+      <div class="eyebrow">Scene 03 · 태양 에너지의 생성</div>
+      <h1 class="title">태양 중심부의 수소 핵융합</h1>
+    </div>
+    <div class="fig">
+      <canvas width="1920" height="680"></canvas>
+      <svg viewBox="0 0 1920 680" aria-label="태양 내부와 수소 핵융합">
+        <!-- 3-0 태양 내부 -->
+        <g class="panel" data-only="0">
+          <g stroke="#ffffff" stroke-width="2.5" fill="#ffffff">
+            <line x1="781" y1="213" x2="1040" y2="150"/><circle cx="781" cy="213" r="6"/>
+            <line x1="700" y1="300" x2="1040" y2="280"/><circle cx="700" cy="300" r="6"/>
+            <line x1="590" y1="352" x2="1040" y2="420"/><circle cx="590" cy="352" r="6"/>
+          </g>
+          <text class="lbl w" x="1060" y="162">대류층</text>
+          <text class="lbl w" x="1060" y="292">복사층</text>
+          <text class="lbl" x="1060" y="432" style="fill:#ff6b6b;font-weight:700">핵 (중심부)</text>
+          <text class="lbl-s w2" x="1060" y="476">약 1500만 K · 원자핵과 전자가 분리된 플라스마 상태</text>
+          <rect x="1060" y="506" width="390" height="58" rx="29" fill="#ee0000"/>
+          <text x="1255" y="545" text-anchor="middle" font-family="Geist,'Noto Sans KR',sans-serif" font-size="28" font-weight="700" fill="#ffffff">수소 핵융합 반응</text>
+          <text class="lbl-s w2" x="560" y="668" text-anchor="middle">태양의 단면</text>
+        </g>
+        <!-- 3-1 수소 핵융합 -->
+        <g class="panel" data-only="1">
+          <g id="fWig" opacity="0" fill="none" stroke="#ffd36b" stroke-width="5" stroke-linecap="round">
+            <path d="M915 230 q -16 -12 0 -24 t 0 -24 t 0 -24 t 0 -24"/>
+            <path d="M960 222 q -16 -12 0 -24 t 0 -24 t 0 -24 t 0 -24"/>
+            <path d="M1005 230 q -16 -12 0 -24 t 0 -24 t 0 -24 t 0 -24"/>
+          </g>
+          <text id="fEnergy" x="960" y="104" text-anchor="middle" font-family="Geist,'Noto Sans KR',sans-serif" font-size="40" font-weight="700" fill="#ffd36b" opacity="0">에너지</text>
+          <g id="fLabels" opacity="0">
+            <line x1="560" y1="320" x2="1330" y2="320" stroke="#ffffff" stroke-opacity=".55" stroke-width="4" stroke-dasharray="4 12" stroke-linecap="round"/>
+            <text class="lbl w" x="380" y="480" text-anchor="middle">수소 원자핵 4개</text>
+            <text class="lbl-s w2" x="380" y="522" text-anchor="middle">반응 전</text>
+            <text class="lbl w" x="1480" y="480" text-anchor="middle">헬륨 원자핵 1개</text>
+            <text class="lbl-s w2" x="1480" y="522" text-anchor="middle">반응 후</text>
+          </g>
+          <g transform="translate(1460 640)" font-family="Geist,'Noto Sans KR',sans-serif" font-size="26" font-weight="500" fill="#ffffff">
+            <circle cx="0" cy="-9" r="14" fill="#ff4d4d"/><text x="24" y="0">양성자</text>
+            <circle cx="150" cy="-9" r="14" fill="#a1a1a1"/><text x="174" y="0">중성자</text>
+          </g>
+        </g>
+      </svg>
+      <button class="pill" id="replay" style="right:90px;top:20px;display:none;background:#fff;color:#171717">▶ 다시 보기</button>
+    </div>
+    <div class="caption"><span class="txt"></span></div>
+  </section>
+
+  <!-- ============ 장면 4 : 줄어든 질량 → 에너지 ============ -->
+  <section class="scene" id="s4">
+    <div class="head">
+      <div class="eyebrow">Scene 04 · 질량과 에너지</div>
+      <h1 class="title">줄어든 질량은 어디로 갔을까?</h1>
+    </div>
+    <div class="fig">
+      <canvas width="1920" height="680"></canvas>
+      <svg viewBox="0 0 1920 680" aria-label="질량 비교와 에너지 전환">
+        <defs>
+          <g id="hNucS"><circle r="28" fill="#ff4d4d" stroke="#c50000" stroke-width="2.5"/><text y="9" text-anchor="middle" font-family="Geist,Arial" font-weight="700" font-size="26" fill="#fff">H</text></g>
+          <g id="heNucS" transform="scale(.778)">
+            <circle cx="-30" cy="-30" r="36" fill="#ff4d4d" stroke="#c50000" stroke-width="3"/>
+            <circle cx="30" cy="-30" r="36" fill="#a1a1a1" stroke="#4d4d4d" stroke-width="3"/>
+            <circle cx="-30" cy="30" r="36" fill="#a1a1a1" stroke="#4d4d4d" stroke-width="3"/>
+            <circle cx="30" cy="30" r="36" fill="#ff4d4d" stroke="#c50000" stroke-width="3"/>
+            <text y="13" text-anchor="middle" font-family="Geist,Arial" font-weight="700" font-size="38" fill="#fff" stroke="#171717" stroke-width="6" paint-order="stroke" stroke-linejoin="round">He</text>
+          </g>
+        </defs>
+        <!-- 4-0 저울 -->
+        <g class="panel" data-only="0">
+          <path d="M960 170 L 925 600 L 995 600 Z" fill="#ebebeb" stroke="#171717" stroke-width="3"/>
+          <rect x="840" y="600" width="240" height="22" rx="6" fill="#171717"/>
+          <g id="beam"><rect x="420" y="162" width="1080" height="16" rx="8" fill="#171717"/></g>
+          <circle cx="960" cy="170" r="14" fill="#fff" stroke="#171717" stroke-width="4"/>
+          <line id="strL" stroke="#4d4d4d" stroke-width="3"/>
+          <line id="strR" stroke="#4d4d4d" stroke-width="3"/>
+          <g id="panL">
+            <path d="M-150 0 Q 0 40 150 0 Z" fill="#fff" stroke="#171717" stroke-width="4"/>
+            <use href="#hNucS" x="-32" y="-30"/><use href="#hNucS" x="32" y="-30"/>
+            <use href="#hNucS" x="-32" y="-88"/><use href="#hNucS" x="32" y="-88"/>
+            <text class="lbl" x="0" y="80" text-anchor="middle">수소 원자핵 4개</text>
+            <text x="0" y="132" text-anchor="middle" class="mono" font-size="44" fill="#171717">4.032 u</text>
+          </g>
+          <g id="panR">
+            <path d="M-150 0 Q 0 40 150 0 Z" fill="#fff" stroke="#171717" stroke-width="4"/>
+            <use href="#heNucS" x="0" y="-56"/>
+            <text class="lbl" x="0" y="80" text-anchor="middle">헬륨 원자핵 1개</text>
+            <text x="0" y="132" text-anchor="middle" class="mono" font-size="44" fill="#171717">4.003 u</text>
+          </g>
+          <text class="lbl-s" x="1860" y="660" text-anchor="end" style="fill:#8f8f8f">u : 원자 질량 단위</text>
+        </g>
+        <!-- 4-1 질량 → 에너지 -->
+        <g class="panel" data-only="1">
+          <text class="lbl-s w2" x="260" y="56">반응 전 · 수소 원자핵 4개</text>
+          <text x="600" y="56" class="mono" font-size="34" fill="#ffffff">4.032 u</text>
+          <text class="lbl-s w2" x="260" y="196">반응 후 · 헬륨 원자핵 1개</text>
+          <text x="600" y="196" class="mono" font-size="34" fill="#ffffff">4.003 u</text>
+          <line x1="1655" y1="134" x2="1655" y2="318" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="5 5"/>
+          <text x="1640" y="316" text-anchor="end" font-family="Geist,'Noto Sans KR',sans-serif" font-size="27" font-weight="600" fill="#ff6b6b">줄어든 질량 <tspan class="mono" fill="#ffd36b" font-size="32">0.029 u</tspan></text>
+          <text id="mEnergy" x="1655" y="50" text-anchor="middle" font-family="Geist,'Noto Sans KR',sans-serif" font-size="40" font-weight="700" fill="#ffd36b" opacity="0">에너지</text>
+          <text class="lbl-s w2" x="260" y="316" style="font-size:23px">막대 길이는 실제 질량 비율대로 그렸습니다</text>
+          <text class="lbl" x="360" y="532" text-anchor="middle">태양</text>
+          <text class="lbl w" x="1500" y="600" text-anchor="middle">지구</text>
+          <text class="lbl-s w2" x="970" y="460" text-anchor="middle">태양에서 방출 → 일부가 지구에 도달</text>
+        </g>
+      </svg>
+    </div>
+    <div class="caption"><span class="txt"></span></div>
+  </section>
+
+  <!-- ============ 장면 5 : 태양 에너지의 전환 ============ -->
+  <section class="scene" id="s5">
+    <div class="head">
+      <div class="eyebrow">Scene 05 · 태양 에너지의 전환</div>
+      <h1 class="title">에너지 전환과 예시</h1>
+    </div>
+    <div class="fig">
+      <svg viewBox="0 0 1920 680" aria-label="태양 에너지 전환 흐름도">
+        <defs>
+          <radialGradient id="gSun3" cx="50%" cy="50%" r="50%">
+            <stop offset="0" stop-color="#fff6c8"/><stop offset=".55" stop-color="#f9cb28"/><stop offset="1" stop-color="#ff7a3d"/>
+          </radialGradient>
+          <marker id="mA3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#f5a623"/></marker>
+          <marker id="mK3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#a1a1a1"/></marker>
+          <clipPath id="cPanel"><path d="M-80 30 L -50 -40 L 90 -40 L 60 30 Z"/></clipPath>
+        </defs>
+
+        <circle cx="800" cy="70" r="68" fill="url(#gSun3)"/>
+        <text class="lbl" x="800" y="82" text-anchor="middle" style="font-size:30px">태양</text>
+
+        <g stroke="#f5a623" stroke-width="4" stroke-opacity=".5" fill="none" marker-end="url(#mA3)">
+          <line x1="738" y1="100" x2="480" y2="196"/>
+          <line x1="862" y1="100" x2="1120" y2="196"/>
+        </g>
+        <g>
+          <rect x="280" y="200" width="260" height="70" rx="35" fill="#ffefcf" stroke="#ff4d4d" stroke-width="3"/>
+          <text class="lbl" x="410" y="247" text-anchor="middle">열에너지</text>
+          <rect x="1060" y="200" width="260" height="70" rx="35" fill="#ffefcf" stroke="#f5a623" stroke-width="3"/>
+          <text class="lbl" x="1190" y="247" text-anchor="middle">빛에너지</text>
+        </g>
+
+        <g stroke="#a1a1a1" stroke-width="4" fill="none" marker-end="url(#mK3)">
+          <line class="arr" data-show="1" x1="370" y1="274" x2="262" y2="372"/>
+          <line class="arr" data-show="2" x1="450" y1="274" x2="560" y2="372"/>
+          <line class="arr" data-show="3" x1="1150" y1="274" x2="1040" y2="372"/>
+          <line class="arr" data-show="4" x1="1172" y1="505" x2="1206" y2="505"/>
+          <line class="arr" data-show="5" x1="1262" y1="274" x2="1690" y2="372"/>
+        </g>
+
+        <!-- 바람 -->
+        <g class="node" data-show="1" transform="translate(70 380)">
+          <rect class="box" width="320" height="260" rx="16"/>
+          <g transform="translate(160 78)">
+            <line x1="0" y1="0" x2="0" y2="62" stroke="#171717" stroke-width="5"/>
+            <g id="blades" fill="#50e3c2" stroke="#171717" stroke-width="2.5">
+              <path d="M0 0 L -6 -52 Q 0 -60 6 -52 Z"/>
+              <path d="M0 0 L -6 -52 Q 0 -60 6 -52 Z" transform="rotate(120)"/>
+              <path d="M0 0 L -6 -52 Q 0 -60 6 -52 Z" transform="rotate(240)"/>
+            </g>
+            <circle r="7" fill="#171717"/>
+            <g stroke="#8f8f8f" stroke-width="4" fill="none" stroke-linecap="round" class="windl">
+              <path d="M-130 -20 h 50 q 14 0 14 -12"/><path d="M-130 8 h 70"/><path d="M-130 34 h 46 q 14 0 14 12"/>
+            </g>
+          </g>
+          <text class="lbl" x="160" y="190" text-anchor="middle">바람</text>
+          <text class="lbl-b" x="160" y="236" text-anchor="middle" style="font-size:30px">운동 에너지</text>
+        </g>
+        <!-- 구름과 강수 -->
+        <g class="node" data-show="2" transform="translate(430 380)">
+          <rect class="box" width="320" height="260" rx="16"/>
+          <g transform="translate(160 70)">
+            <g id="rain" stroke="#0070f3" stroke-width="5" stroke-linecap="round">
+              <line x1="-36" y1="34" x2="-44" y2="54"/><line x1="0" y1="34" x2="-8" y2="54"/><line x1="36" y1="34" x2="28" y2="54"/>
+            </g>
+            <path d="M-62 18 a 26 26 0 0 1 8 -50 a 36 36 0 0 1 66 -8 a 28 28 0 0 1 48 28 a 22 22 0 0 1 -6 30 z" fill="#f2f2f2" stroke="#171717" stroke-width="3"/>
+          </g>
+          <text class="lbl" x="160" y="190" text-anchor="middle">구름 · 비</text>
+          <text class="lbl-b" x="160" y="236" text-anchor="middle" style="font-size:30px">위치 에너지</text>
+        </g>
+        <!-- 광합성 -->
+        <g class="node" data-show="3" transform="translate(850 380)">
+          <rect class="box" width="320" height="260" rx="16"/>
+          <g transform="translate(160 76)">
+            <g id="leaf">
+              <path d="M-46 46 C -60 -10 -10 -56 54 -50 C 60 14 14 58 -46 46 Z" fill="#50e3c2" stroke="#171717" stroke-width="3"/>
+              <path d="M-46 46 L 30 -28" stroke="#171717" stroke-width="3" fill="none"/>
+              <path d="M-14 14 l -14 -18 M 8 -8 l 18 6" stroke="#171717" stroke-width="2.5" fill="none"/>
+            </g>
+            <g id="glu" fill="none" stroke="#7928ca" stroke-width="3">
+              <path d="M70 0 l 10 -6 l 10 6 v 12 l -10 6 l -10 -6 z"/>
+              <path d="M-90 -10 l 8 -5 l 8 5 v 10 l -8 5 l -8 -5 z"/>
+            </g>
+          </g>
+          <text class="lbl" x="160" y="190" text-anchor="middle">광합성</text>
+          <text class="lbl-b" x="160" y="236" text-anchor="middle" style="font-size:30px">화학 에너지</text>
+        </g>
+        <!-- 화석 연료 -->
+        <g class="node" data-show="4" transform="translate(1210 380)">
+          <rect class="box" width="320" height="260" rx="16"/>
+          <g transform="translate(160 76)">
+            <rect x="-100" y="22" width="200" height="34" rx="4" fill="#ebebeb"/>
+            <rect x="-100" y="40" width="200" height="16" rx="4" fill="#a1a1a1"/>
+            <g id="drop">
+              <path d="M0 -58 C 14 -34 34 -14 34 8 a 34 34 0 0 1 -68 0 C -34 -14 -14 -34 0 -58 Z" fill="#171717"/>
+              <path d="M-14 0 a 16 16 0 0 0 10 16" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/>
+            </g>
+          </g>
+          <text class="lbl" x="160" y="190" text-anchor="middle">화석 연료</text>
+          <text class="lbl-b" x="160" y="236" text-anchor="middle" style="font-size:30px">화학 에너지</text>
+        </g>
+        <!-- 태양 전지 -->
+        <g class="node" data-show="5" transform="translate(1570 380)">
+          <rect class="box" width="320" height="260" rx="16"/>
+          <g transform="translate(160 78)">
+            <path d="M-80 30 L -50 -40 L 90 -40 L 60 30 Z" fill="#0070f3" stroke="#171717" stroke-width="3"/>
+            <g clip-path="url(#cPanel)"><rect id="glint" x="-120" y="-45" width="26" height="80" fill="#ffffff" opacity=".7" transform="skewX(-20)"/></g>
+            <g stroke="#d3e5ff" stroke-width="2.5">
+              <line x1="-65" y1="-5" x2="75" y2="-5"/>
+              <line x1="-3" y1="-40" x2="-33" y2="30"/><line x1="43" y1="-40" x2="13" y2="30"/>
+            </g>
+            <line x1="5" y1="30" x2="5" y2="62" stroke="#171717" stroke-width="5"/>
+            <path id="bolt" d="M100 4 l -14 22 h 12 l -8 20 l 22 -28 h -12 l 8 -14 z" fill="#eb367f"/>
+          </g>
+          <text class="lbl" x="160" y="190" text-anchor="middle">태양 전지</text>
+          <text class="lbl-b" x="160" y="236" text-anchor="middle" style="font-size:30px">전기 에너지</text>
+        </g>
+      </svg>
+      <canvas width="1920" height="680" style="pointer-events:none"></canvas>
+    </div>
+    <div class="caption"><span class="txt"></span></div>
+  </section>
+
+  <div id="navbtns"><button class="sq" id="bPrev" aria-label="앞으로">←</button><button class="sq" id="bNext" aria-label="다음">→</button></div>
+  <div id="pager"><div id="dots"></div><span id="num">1 / 5</span></div>
+</div>
+
+<script>
+/* ---------- 장면별 단계 문장 (화면 글은 두 줄 이하) ---------- */
+const SCENES = [
+  { id:'s1', captions:[
+    '<span class="k">일을 할 수 있는 능력</span>을 에너지라고 한다.<br>에너지는 여러 가지 형태로 우리 주변에 존재한다.',
+    '<span class="k">빛에너지</span> : 빛의 형태로 전달되는 에너지',
+    '<span class="k">열에너지</span> : 물질의 온도나 상태를 변화시키는 에너지',
+    '<span class="k">화학 에너지</span> : 음식물이나 연료 같은 물질에 저장된 에너지',
+    '<span class="k">전기 에너지</span> : 전류가 흐를 때 전달되는 에너지',
+    '<span class="k">역학적 에너지</span> = 운동 에너지 + 위치 에너지',
+    '<span class="k">핵에너지</span> : 원자핵이 핵반응할 때 발생하는 에너지'
+  ]},
+  { id:'s2', captions:[
+    '태양 에너지는 태양에서 방출되어<br>그 <span class="k">일부</span>가 지구에 도달한다.',
+    '지구에서 일어나는 자연 현상의 근원이 되는 에너지는<br><span class="k">태양 에너지</span>이다.'
+  ]},
+  { id:'s3', captions:[
+    '태양 에너지는 태양 <span class="k">중심부(핵)</span>에서 일어나는<br><span class="k">수소 핵융합 반응</span>으로 생성된다.',
+    '<span class="k">수소 원자핵 4개</span>가 융합하여 <span class="k">헬륨 원자핵 1개</span>가 되고,<br>이때 에너지가 방출된다.'
+  ]},
+  { id:'s4', captions:[
+    '반응 후 헬륨 원자핵 1개의 질량은<br>반응 전 수소 원자핵 4개의 질량 합보다 <span class="k">작다</span>.',
+    '<span class="k">줄어든 질량이 에너지로 전환</span>되어 태양에서 방출되고,<br>그 일부가 지구에 도달한다.'
+  ]},
+  { id:'s5', captions:[
+    '한 형태의 에너지가 다른 형태로 바뀌는 것을 <span class="k">에너지 전환</span>이라고 한다.<br>태양 에너지는 지구에 열에너지와 빛에너지로 도달한다.',
+    '가열된 지표에 기압 차가 생기면 바람이 분다.<br>태양 에너지 → 바람의 <span class="k">운동 에너지</span>',
+    '물이 증발해 구름이 되고, 비와 눈으로 내린다.<br>태양 에너지 → 구름의 <span class="k">위치 에너지</span>',
+    '식물은 광합성으로 태양 에너지를<br>포도당 속 <span class="k">화학 에너지</span>로 저장한다.',
+    '생물의 유해가 땅속에서 오랜 시간 열과 압력을 받아 화석 연료가 된다.<br>화석 연료의 <span class="k">화학 에너지</span>도 근원은 태양 에너지이다.',
+    '태양 전지는 태양 에너지를<br><span class="k">전기 에너지</span>로 직접 전환한다.',
+    '지구에 도달한 태양 에너지는 <span class="k">다양한 형태의 에너지로 전환</span>되며<br>지구에서 에너지 흐름을 일으킨다.'
+  ]}
+];
+
+let sc = 0, st = 0, stepStart = performance.now();
+const stage = document.getElementById('stage');
+const CTX = SCENES.map(S=>{ const c = document.querySelector('#'+S.id+' canvas'); return c ? c.getContext('2d') : null; });
+
+function fit(){
+  const s = Math.min(innerWidth/1920, innerHeight/1080);
+  stage.style.transform = `scale(${s})`;
+  stage.style.left = ((innerWidth - 1920*s)/2) + 'px';
+  stage.style.top  = ((innerHeight - 1080*s)/2) + 'px';
+}
+addEventListener('resize', fit); fit();
+
+function render(){
+  SCENES.forEach((S,i)=>document.getElementById(S.id).classList.toggle('active', i===sc));
+  const S = SCENES[sc], el = document.getElementById(S.id);
+  el.querySelector('.caption .txt').innerHTML = S.captions[st];
+  el.querySelectorAll('[data-show]').forEach(n=>{
+    const k = +n.dataset.show;
+    n.classList.toggle('show', st >= k);
+    n.classList.toggle('now', st === k);
+  });
+  el.querySelectorAll('[data-only]').forEach(n=>n.classList.toggle('show', +n.dataset.only === st));
+  el.querySelectorAll('[data-from]').forEach(n=>n.classList.toggle('show', st >= +n.dataset.from));
+  document.getElementById('num').textContent = `${sc+1} / ${SCENES.length}`;
+  document.getElementById('dots').innerHTML = S.captions.map((_,i)=>`<i class="${i<=st?'on':''}"></i>`).join('');
+  document.getElementById('replay').style.display = (sc===2 && st===1) ? 'block' : 'none';
+  stepStart = performance.now();
+  resetFx();
+}
+function next(){
+  if (st < SCENES[sc].captions.length-1) st++;
+  else if (sc < SCENES.length-1){ sc++; st = 0; }
+  render();
+}
+function prev(){
+  if (st > 0) st--;
+  else if (sc > 0){ sc--; st = SCENES[sc].captions.length-1; }
+  render();
+}
+addEventListener('keydown', e=>{
+  if (['ArrowRight',' ','PageDown','Enter'].includes(e.key)){ e.preventDefault(); next(); }
+  else if (['ArrowLeft','PageUp','Backspace'].includes(e.key)){ e.preventDefault(); prev(); }
+  else if (e.key==='f' || e.key==='F' || e.key==='ㄹ'){
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  }
+});
+document.getElementById('bNext').onclick = e=>{ e.currentTarget.blur(); next(); };
+document.getElementById('bPrev').onclick = e=>{ e.currentTarget.blur(); prev(); };
+document.getElementById('replay').onclick = e=>{ e.currentTarget.blur(); stepStart = performance.now(); resetFx(); };
+
+/* =========================================================
+   그리기 도구
+   ========================================================= */
+const TAU = Math.PI*2;
+const clamp = (v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const lerp = (a,b,t)=>a+(b-a)*t;
+const easeIO = t => t<.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+const easeOut = t => 1-Math.pow(1-t,3);
+const rnd = (a,b)=>a+Math.random()*(b-a);
+function rgba(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+
+function glow(c,x,y,r,hex,a=1,core='#ffffff'){
+  const g=c.createRadialGradient(x,y,0,x,y,r*3.2);
+  g.addColorStop(0,rgba(hex,a)); g.addColorStop(.28,rgba(hex,a*.55)); g.addColorStop(1,rgba(hex,0));
+  c.fillStyle=g; c.beginPath(); c.arc(x,y,r*3.2,0,TAU); c.fill();
+  c.fillStyle=rgba(core,a); c.beginPath(); c.arc(x,y,r*.6,0,TAU); c.fill();
+}
+const STARS = Array.from({length:200},()=>({x:rnd(70,1850),y:rnd(10,670),r:rnd(.4,1.9),p:rnd(0,TAU),s:rnd(1,3)}));
+function darkBg(c,t){
+  c.clearRect(0,0,1920,680);
+  const g=c.createLinearGradient(0,0,0,680); g.addColorStop(0,'#0b0b12'); g.addColorStop(1,'#171717');
+  c.fillStyle=g; c.beginPath(); c.roundRect(60,0,1800,680,18); c.fill();
+  c.save(); c.beginPath(); c.roundRect(60,0,1800,680,18); c.clip();
+  for(const s of STARS){ c.fillStyle=`rgba(255,255,255,${.25+.45*(.5+.5*Math.sin(t*s.s+s.p))})`; c.beginPath(); c.arc(s.x,s.y,s.r,0,TAU); c.fill(); }
+  c.restore();
+}
+function clipPanel(c){ c.save(); c.beginPath(); c.roundRect(60,0,1800,680,18); c.clip(); }
+
+function drawSun(c,x,y,R,t,boost=0){
+  // 코로나
+  for(let i=0;i<3;i++){
+    const rr=R*(1.35+.12*i+.05*Math.sin(t*1.4+i*2)+boost*.3);
+    const g=c.createRadialGradient(x,y,R*.85,x,y,rr);
+    g.addColorStop(0,`rgba(255,170,50,${.32+boost*.3})`); g.addColorStop(1,'rgba(255,120,30,0)');
+    c.fillStyle=g; c.beginPath(); c.arc(x,y,rr,0,TAU); c.fill();
+  }
+  // 빛줄기
+  c.save(); c.translate(x,y); c.rotate(t*.06);
+  for(let k=0;k<40;k++){
+    const a=k/40*TAU, len=R*(.22+.18*Math.sin(t*2.3+k*1.7)+.08*Math.sin(t*5.1+k*3.3));
+    c.fillStyle=`rgba(255,210,90,${.16+boost*.2})`;
+    c.beginPath(); c.moveTo(Math.cos(a-.035)*R*.96,Math.sin(a-.035)*R*.96);
+    c.lineTo(Math.cos(a)*(R+len),Math.sin(a)*(R+len));
+    c.lineTo(Math.cos(a+.035)*R*.96,Math.sin(a+.035)*R*.96); c.fill();
+  }
+  c.restore();
+  // 몸체
+  const g=c.createRadialGradient(x-R*.25,y-R*.25,R*.05,x,y,R);
+  g.addColorStop(0,'#fffbe6'); g.addColorStop(.45,'#f9cb28'); g.addColorStop(1,'#ff6a2b');
+  c.fillStyle=g; c.beginPath(); c.arc(x,y,R,0,TAU); c.fill();
+  // 표면 알갱이
+  c.save(); c.beginPath(); c.arc(x,y,R,0,TAU); c.clip();
+  for(let k=0;k<30;k++){
+    const a=k*2.399+t*.05, d=R*Math.sqrt((k*.618)%1);
+    const bx=x+Math.cos(a)*d, by=y+Math.sin(a)*d, br=R*.11*(1+.3*Math.sin(t*2+k));
+    const gg=c.createRadialGradient(bx,by,0,bx,by,br); gg.addColorStop(0,'rgba(255,255,230,.28)'); gg.addColorStop(1,'rgba(255,255,230,0)');
+    c.fillStyle=gg; c.beginPath(); c.arc(bx,by,br,0,TAU); c.fill();
+  }
+  c.restore();
+}
+const LAND=[[-.35,-.25,.38],[.3,.35,.32],[.15,-.5,.22],[-.25,.5,.25],[.55,-.1,.2]];
+function drawEarth(c,x,y,r,t,lit=0){
+  const h=c.createRadialGradient(x,y,r*.9,x,y,r+16+lit*34);
+  h.addColorStop(0,`rgba(90,170,255,${.55+lit*.4})`); h.addColorStop(1,'rgba(90,170,255,0)');
+  c.fillStyle=h; c.beginPath(); c.arc(x,y,r+16+lit*34,0,TAU); c.fill();
+  c.save(); c.beginPath(); c.arc(x,y,r,0,TAU); c.clip();
+  c.fillStyle='#0070f3'; c.fillRect(x-r,y-r,2*r,2*r);
+  c.fillStyle='#50e3c2';
+  for(const [lx,ly,lr] of LAND){
+    let bx=((lx*r + t*9 + 1.4*r) % (2.8*r)) - 1.4*r;
+    c.beginPath(); c.arc(x+bx,y+ly*r,lr*r,0,TAU); c.fill();
+  }
+  const sh=c.createLinearGradient(x-r,y,x+r,y);
+  sh.addColorStop(0,'rgba(255,240,180,.25)'); sh.addColorStop(.5,'rgba(0,0,30,0)'); sh.addColorStop(1,'rgba(0,0,30,.62)');
+  c.fillStyle=sh; c.fillRect(x-r,y-r,2*r,2*r);
+  c.restore();
+}
+function drawPhotons(c,list,hex){
+  c.lineCap='round';
+  for(const p of list){
+    const n=p.tr.length, a=p.a??1;
+    for(let i=1;i<n;i++){
+      c.strokeStyle=rgba(hex,(i/n)*.85*a); c.lineWidth=3;
+      c.beginPath(); c.moveTo(p.tr[i-1][0],p.tr[i-1][1]); c.lineTo(p.tr[i][0],p.tr[i][1]); c.stroke();
+    }
+    if(n) glow(c,p.tr[n-1][0],p.tr[n-1][1],4.5,hex,a);
+  }
+}
+/* 태양 → 바깥으로 퍼지는 광자 흐름 (일부는 지구 방향) */
+function stepStream(S,dt,o){
+  S.acc=(S.acc||0)+dt*o.rate;
+  while(S.acc>1){ S.acc--;
+    let a;
+    if(Math.random()<o.aim){ const b=Math.atan2(o.ey-o.sy,o.ex-o.sx); a=b+rnd(-1,1)*Math.asin(o.er/Math.hypot(o.ex-o.sx,o.ey-o.sy))*.9; }
+    else a=rnd(-o.spread,o.spread);
+    const sp=rnd(500,640);
+    S.ph.push({x:o.sx+Math.cos(a)*o.R,y:o.sy+Math.sin(a)*o.R,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,ph:rnd(0,TAU),tr:[]});
+  }
+  for(const p of S.ph){
+    p.x+=p.vx*dt; p.y+=p.vy*dt; p.ph+=dt*24;
+    const n=Math.hypot(p.vx,p.vy), w=Math.sin(p.ph)*5;
+    p.tr.push([p.x-p.vy/n*w, p.y+p.vx/n*w]); if(p.tr.length>14) p.tr.shift();
+    if(Math.hypot(p.x-o.ex,p.y-o.ey)<o.er){ p.dead=1; S.lit=Math.min(1,(S.lit||0)+.22); S.hits.push({x:p.x,y:p.y,t:0}); }
+    if(p.x>1880||p.y<-30||p.y>710) p.dead=1;
+  }
+  S.ph=S.ph.filter(p=>!p.dead);
+  S.lit=(S.lit||0)*Math.pow(.25,dt);
+  for(const h of S.hits) h.t+=dt;
+  S.hits=S.hits.filter(h=>h.t<.5);
+}
+function drawHits(c,S){
+  for(const h of S.hits){ c.strokeStyle=`rgba(255,230,140,${1-h.t/.5})`; c.lineWidth=3; c.beginPath(); c.arc(h.x,h.y,4+h.t*70,0,TAU); c.stroke(); }
+}
+function drawH(c,x,y,a=1,r=36){
+  c.globalAlpha=a;
+  c.fillStyle='#ff4d4d'; c.strokeStyle='#ffb3b3'; c.lineWidth=3;
+  c.beginPath(); c.arc(x,y,r,0,TAU); c.fill(); c.stroke();
+  c.fillStyle='#fff'; c.font=`700 ${r*.9}px Geist, Arial, sans-serif`; c.textAlign='center'; c.textBaseline='middle';
+  c.fillText('H',x,y+2); c.globalAlpha=1;
+}
+function drawHe(c,x,y,s=1,a=1){
+  c.globalAlpha=a;
+  const P=[[-30,-30,'#ff4d4d'],[30,-30,'#a1a1a1'],[-30,30,'#a1a1a1'],[30,30,'#ff4d4d']];
+  for(const [ox,oy,col] of P){
+    c.fillStyle=col; c.strokeStyle=col==='#ff4d4d'?'#ffb3b3':'#d4d4d4'; c.lineWidth=3;
+    c.beginPath(); c.arc(x+ox*s,y+oy*s,36*s,0,TAU); c.fill(); c.stroke();
+  }
+  c.font=`700 ${38*s}px Geist, Arial, sans-serif`; c.textAlign='center'; c.textBaseline='middle';
+  c.lineWidth=6*s; c.strokeStyle='#171717'; c.lineJoin='round'; c.strokeText('He',x,y+2); c.fillStyle='#fff'; c.fillText('He',x,y+2);
+  c.globalAlpha=1;
+}
+function wavePacket(c,x,y,ang,d,len,t,hex,a){
+  const ux=Math.cos(ang),uy=Math.sin(ang),px=-uy,py=ux;
+  c.save(); c.shadowColor=hex; c.shadowBlur=16; c.lineWidth=4; c.lineCap='round';
+  for(let s=0;s<len;s+=4){
+    const k=s/len, dd=d-len+s, amp=11*Math.sin(Math.PI*k);
+    const off=amp*Math.sin(s*.22 - t*30);
+    const X=x+ux*dd+px*off, Y=y+uy*dd+py*off;
+    if(s===0){ c.beginPath(); c.moveTo(X,Y); } else c.lineTo(X,Y);
+  }
+  c.strokeStyle=rgba(hex,a); c.stroke(); c.restore();
+}
+
+/* =========================================================
+   장면별 움직임
+   ========================================================= */
+let FXS = {};
+function resetFx(){ FXS = {ph:[],hits:[],acc:0,lit:0, walk:[],sparks:[],rings:[],fired:false,lastTT:0, parts:[], packets:[], pulse:{}, acc2:{}}; }
+resetFx();
+
+const FX = [];
+
+/* 장면 2 : 태양 → 지구 (SVG 점선 흐름만 사용) */
+FX[1] = null;
+
+/* 장면 3 : 태양 내부 / 수소 핵융합 */
+const H_OFF=[[-70,-70],[70,-70],[-70,70],[70,70]];
+function softHaze(c,x,y,t,r0,r1,period,col,amax){
+  // 중심에서 뿌옇게 번져 나가는 빛 (부드러운 띠 2개가 천천히 퍼짐)
+  for(let k=0;k<2;k++){
+    const p=((t/period)+k*.5)%1, r=lerp(r0,r1,p), a=amax*Math.sin(Math.PI*p);
+    const g=c.createRadialGradient(x,y,Math.max(0,r-140),x,y,r+60);
+    g.addColorStop(0,rgba(col,0)); g.addColorStop(.6,rgba(col,a)); g.addColorStop(1,rgba(col,0));
+    c.fillStyle=g; c.beginPath(); c.arc(x,y,r+60,0,TAU); c.fill();
+  }
+}
+FX[2] = (c,dt,t)=>{
+  const S=FXS;
+  if(st===0){
+    darkBg(c,t); clipPanel(c);
+    const X=560,Y=340,R=300,RR=210,RC=75;
+    // 대류층 · 복사층 (움직임 없음)
+    let g=c.createRadialGradient(X,Y,RR,X,Y,R); g.addColorStop(0,'#ffa040'); g.addColorStop(1,'#ff6a2b');
+    c.fillStyle=g; c.beginPath(); c.arc(X,Y,R,0,TAU); c.fill();
+    g=c.createRadialGradient(X,Y,RC,X,Y,RR); g.addColorStop(0,'#ffe08a'); g.addColorStop(1,'#ffb347');
+    c.fillStyle=g; c.beginPath(); c.arc(X,Y,RR,0,TAU); c.fill();
+    // 뿌옇게 번지는 빛
+    softHaze(c,X,Y,t,RC,R+170,4,'#fff3d0',.32);
+    // 핵: 붉게 강조, 천천히 맥동
+    const pul=.5+.5*Math.sin(t*2.2);
+    const hg=c.createRadialGradient(X,Y,RC*.7,X,Y,RC*(1.7+.35*pul));
+    hg.addColorStop(0,`rgba(255,60,60,${.55+.25*pul})`); hg.addColorStop(1,'rgba(255,60,60,0)');
+    c.fillStyle=hg; c.beginPath(); c.arc(X,Y,RC*(1.7+.35*pul),0,TAU); c.fill();
+    const kg=c.createRadialGradient(X,Y,0,X,Y,RC); kg.addColorStop(0,'#ffd2c2'); kg.addColorStop(.6,'#ff6b5a'); kg.addColorStop(1,'#ee0000');
+    c.fillStyle=kg; c.beginPath(); c.arc(X,Y,RC,0,TAU); c.fill();
+    c.strokeStyle='rgba(255,255,255,.9)'; c.lineWidth=3; c.beginPath(); c.arc(X,Y,RC,0,TAU); c.stroke();
+    c.restore();
+    return;
+  }
+  // ---- 수소 핵융합 (9.5초마다 반복) ----
+  const C=[960,320], L=[380,320], RT=[1480,320];
+  const tt=t%9.5;
+  if(tt<S.lastTT){ S.parts=[]; }
+  S.lastTT=tt;
+  darkBg(c,t); clipPanel(c);
+  // 수소 원자핵 4개
+  if(tt<2.3){
+    if(!S.parts.length) S.parts=H_OFF.map(()=>({tr:[]}));
+    H_OFF.forEach((o,i)=>{
+      const sx=L[0]+o[0], sy=L[1]+o[1]; let x,y;
+      if(tt<1.2){ x=sx+Math.sin(tt*31+i*2)*4; y=sy+Math.cos(tt*27+i*3)*4; }
+      else { const p=(tt-1.2)/1.1, e=p*p*p; const tx=C[0]+o[0]*.28, ty=C[1]+o[1]*.28;
+        x=lerp(sx,tx,e); y=lerp(sy,ty,e)+Math.sin(p*Math.PI)*(i<2?-60:60)*(1-e); }
+      const P=S.parts[i]; P.tr.push([x,y]); if(P.tr.length>12) P.tr.shift();
+      if(tt>1.2){ for(let k=1;k<P.tr.length;k++){ const a=k/P.tr.length; c.fillStyle=`rgba(255,90,90,${a*.25})`; c.beginPath(); c.arc(P.tr[k][0],P.tr[k][1],36*a,0,TAU); c.fill(); } }
+      drawH(c,x,y);
+    });
+  }
+  // 융합 순간: 부드러운 섬광
+  if(tt>2.3&&tt<3.4){ const k=(tt-2.3)/1.1; const r=60+300*easeOut(k);
+    const fg=c.createRadialGradient(C[0],C[1],0,C[0],C[1],r);
+    fg.addColorStop(0,`rgba(255,245,220,${.75*(1-k)})`); fg.addColorStop(1,'rgba(255,170,60,0)');
+    c.fillStyle=fg; c.beginPath(); c.arc(C[0],C[1],r,0,TAU); c.fill(); }
+  // 이후 뿌옇게 번지는 빛
+  if(tt>2.6) softHaze(c,C[0],C[1],tt-2.6,40,460,3.2,'#ffd36b',.22*clamp((tt-2.6)/.6));
+  // 헬륨 원자핵 1개
+  if(tt>=2.35){
+    const k=easeOut(clamp((tt-2.35)/.4)), m=easeIO(clamp((tt-2.7)/1.1));
+    drawHe(c,lerp(C[0],RT[0],m),C[1],.35+.65*k);
+  }
+  const ga=clamp((tt-3.9)/.6);
+  if(ga>0) H_OFF.forEach(o=>drawH(c,L[0]+o[0],L[1]+o[1],.5*ga));
+  c.restore();
+  document.getElementById('fLabels').setAttribute('opacity',ga);
+  const ea=clamp((tt-2.6)/.5);
+  document.getElementById('fEnergy').setAttribute('opacity',ea);
+  document.getElementById('fWig').setAttribute('opacity',ea);
+};
+
+/* 장면 4 : 저울 / 질량 → 에너지 */
+const PIV=[960,170], HALF=520, HANG=200, TILT=-7;   // 음수 각도 = 왼쪽(무거운 쪽)이 내려감
+function setBalance(deg){
+  const r=deg*Math.PI/180;
+  document.getElementById('beam').setAttribute('transform',`rotate(${deg} ${PIV[0]} ${PIV[1]})`);
+  const Lp=[PIV[0]-HALF*Math.cos(r),PIV[1]-HALF*Math.sin(r)], Rp=[PIV[0]+HALF*Math.cos(r),PIV[1]+HALF*Math.sin(r)];
+  document.getElementById('panL').setAttribute('transform',`translate(${Lp[0]} ${Lp[1]+HANG})`);
+  document.getElementById('panR').setAttribute('transform',`translate(${Rp[0]} ${Rp[1]+HANG})`);
+  const a=document.getElementById('strL'), b=document.getElementById('strR');
+  a.setAttribute('x1',Lp[0]);a.setAttribute('y1',Lp[1]);a.setAttribute('x2',Lp[0]);a.setAttribute('y2',Lp[1]+HANG-130);
+  b.setAttribute('x1',Rp[0]);b.setAttribute('y1',Rp[1]);b.setAttribute('x2',Rp[0]);b.setAttribute('y2',Rp[1]+HANG-110);
+}
+function flowArrow(c,x1,y1,x2,y2,t){
+  c.save(); c.strokeStyle='#f5a623'; c.lineWidth=7; c.lineCap='butt';
+  c.setLineDash([18,14]); c.lineDashOffset=-(t*29)%32;
+  const a=Math.atan2(y2-y1,x2-x1), hx=x2-Math.cos(a)*22, hy=y2-Math.sin(a)*22;
+  c.beginPath(); c.moveTo(x1,y1); c.lineTo(hx,hy); c.stroke(); c.setLineDash([]);
+  c.fillStyle='#f5a623'; c.beginPath(); c.moveTo(x2,y2);
+  c.lineTo(hx+Math.cos(a+Math.PI/2)*16,hy+Math.sin(a+Math.PI/2)*16);
+  c.lineTo(hx-Math.cos(a+Math.PI/2)*16,hy-Math.sin(a+Math.PI/2)*16); c.fill(); c.restore();
+}
+FX[3] = (c,dt,t)=>{
+  if(st===0){
+    c.clearRect(0,0,1920,680);
+    const k=Math.max(0,t-.5);
+    setBalance(TILT*(1-Math.exp(-2.6*k)*Math.cos(5.5*k)));
+    return;
+  }
+  darkBg(c,t); clipPanel(c);
+  const X0=260, U=1400/4.032, Aend=X0+4.032*U, Bend=X0+4.003*U, mx=(Bend+Aend)/2;
+  c.fillStyle='#ff4d4d'; c.fillRect(X0,70,Bend-X0,60);
+  c.fillStyle='#a1a1a1'; c.fillRect(X0,210,Bend-X0,60);
+  // 줄어든 부분: 깜빡이다가 뿌옇게 에너지로
+  const a=.65+.35*Math.sin(t*5);
+  c.fillStyle=`rgba(255,211,107,${a})`; c.fillRect(Bend,70,Aend-Bend,60);
+  if(t>1) softHaze(c,mx,100,t-1,10,260,3,'#ffd36b',.28*clamp(t-1));
+  document.getElementById('mEnergy').setAttribute('opacity',clamp((t-1.2)/.5));
+  // 태양 → 지구 (처음 버전처럼 점선 화살표)
+  const sx=360,sy=520,R=100;
+  const hg=c.createRadialGradient(sx,sy,R*.9,sx,sy,R*1.35); hg.addColorStop(0,'rgba(255,170,50,.4)'); hg.addColorStop(1,'rgba(255,170,50,0)');
+  c.fillStyle=hg; c.beginPath(); c.arc(sx,sy,R*1.35,0,TAU); c.fill();
+  const g=c.createRadialGradient(sx-R*.25,sy-R*.25,R*.05,sx,sy,R);
+  g.addColorStop(0,'#fff6c8'); g.addColorStop(.55,'#f9cb28'); g.addColorStop(1,'#ff7a3d');
+  c.fillStyle=g; c.beginPath(); c.arc(sx,sy,R,0,TAU); c.fill();
+  flowArrow(c,500,490,1440,505,t);
+  flowArrow(c,500,550,1440,535,t);
+  drawEarth(c,1500,520,40,t,0);
+  c.restore();
+};
+
+/* 장면 5 : 에너지 전환 흐름도 */
+const EDGES=[
+  {a:[738,100],b:[480,196],col:'#f5a623',s:0,to:'h0'},
+  {a:[862,100],b:[1120,196],col:'#f5a623',s:0,to:'h1'},
+  {a:[370,274],b:[262,372],col:'#00b8a9',s:1,to:'c0'},
+  {a:[450,274],b:[560,372],col:'#0070f3',s:2,to:'c1'},
+  {a:[1150,274],b:[1040,372],col:'#7928ca',s:3,to:'c2'},
+  {a:[1172,505],b:[1206,505],col:'#7928ca',s:4,to:'c3'},
+  {a:[1262,274],b:[1690,372],col:'#eb367f',s:5,to:'c4'}
+];
+const BOX={h0:[280,200,260,70,35],h1:[1060,200,260,70,35],c0:[70,380,320,260,16],c1:[430,380,320,260,16],c2:[850,380,320,260,16],c3:[1210,380,320,260,16],c4:[1570,380,320,260,16]};
+const PCOL={h0:'#ff4d4d',h1:'#f5a623',c0:'#00b8a9',c1:'#0070f3',c2:'#7928ca',c3:'#7928ca',c4:'#eb367f'};
+FX[4] = (c,dt,t)=>{
+  const S=FXS; c.clearRect(0,0,1920,680);
+  // 태양 빛 번짐
+  const pr=104+10*Math.sin(t*3);
+  const sg=c.createRadialGradient(800,70,66,800,70,pr); sg.addColorStop(0,'rgba(255,180,40,.55)'); sg.addColorStop(1,'rgba(255,180,40,0)');
+  c.fillStyle=sg; c.beginPath(); c.arc(800,70,pr,0,TAU); c.arc(800,70,66,0,TAU,true); c.fill();
+  // 에너지 알갱이 생성
+  EDGES.forEach((e,i)=>{
+    if(e.s>st) return;
+    const len=Math.hypot(e.b[0]-e.a[0],e.b[1]-e.a[1]);
+    const rate=(e.s===st&&st>0)?5:2.4;
+    S.acc2[i]=(S.acc2[i]||Math.random())+dt*rate;
+    while(S.acc2[i]>1){ S.acc2[i]--; S.packets.push({e:i,p:0,len,tr:[]}); }
+  });
+  for(const k of S.packets){
+    const e=EDGES[k.e]; k.p+=dt*(e.s===4?110:280)/k.len;
+    const x=lerp(e.a[0],e.b[0],k.p), y=lerp(e.a[1],e.b[1],k.p);
+    k.tr.push([x,y]); if(k.tr.length>8) k.tr.shift();
+    if(k.p>=1){ k.dead=1; S.pulse[e.to]=t; }
+  }
+  S.packets=S.packets.filter(k=>!k.dead);
+  for(const k of S.packets){
+    const col=EDGES[k.e].col, n=k.tr.length;
+    for(let i=1;i<n;i++){ c.strokeStyle=rgba(col,(i/n)*.6); c.lineWidth=5; c.lineCap='round'; c.beginPath(); c.moveTo(...k.tr[i-1]); c.lineTo(...k.tr[i]); c.stroke(); }
+    const [x,y]=k.tr[n-1];
+    const g=c.createRadialGradient(x,y,0,x,y,20); g.addColorStop(0,rgba(col,.55)); g.addColorStop(1,rgba(col,0));
+    c.fillStyle=g; c.beginPath(); c.arc(x,y,20,0,TAU); c.fill();
+    c.fillStyle=col; c.beginPath(); c.arc(x,y,7,0,TAU); c.fill();
+    c.fillStyle='#fff'; c.beginPath(); c.arc(x,y,2.6,0,TAU); c.fill();
+  }
+  // 도착할 때 번쩍임
+  for(const id in S.pulse){
+    const age=t-S.pulse[id]; if(age>.6) continue;
+    const ei=EDGES.findIndex(e=>e.to===id); if(st!==6 && EDGES[ei].s!==st && !(st===0)) continue;
+    const [x,y,w,h,r]=BOX[id], g=age/.6*16;
+    c.strokeStyle=rgba(PCOL[id],.55*(1-age/.6)); c.lineWidth=4;
+    c.beginPath(); c.roundRect(x-g,y-g,w+2*g,h+2*g,r+g); c.stroke();
+  }
+  // 그림 움직임
+  const on=i=>document.querySelector(`#s5 .node[data-show="${i}"]`).classList.contains('show');
+  if(on(1)) document.getElementById('blades').setAttribute('transform',`rotate(${(t*260)%360})`);
+  if(on(2)){ const y=(t*60)%24; const r=document.getElementById('rain'); r.setAttribute('transform',`translate(${-y*.35} ${y})`); r.setAttribute('opacity',1-y/24); }
+  if(on(3)){ document.getElementById('leaf').setAttribute('transform',`rotate(${Math.sin(t*2.2)*6})`);
+    const gy=-((t*30)%40); const gl=document.getElementById('glu'); gl.setAttribute('transform',`translate(0 ${gy})`); gl.setAttribute('opacity',1+gy/40); }
+  if(on(4)) document.getElementById('drop').setAttribute('transform',`translate(0 ${Math.sin(t*3)*6})`);
+  if(on(5)){ document.getElementById('glint').setAttribute('transform',`translate(${(t*180)%300} 0) skewX(-20)`);
+    document.getElementById('bolt').setAttribute('opacity',Math.sin(t*13)>.2?1:.15); }
+};
+
+/* ---------- 매 프레임 ---------- */
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now;
+  const f=FX[sc], c=CTX[sc];
+  if(f&&c){ c.save(); f(c,dt,(now-stepStart)/1000); c.restore(); }
+  requestAnimationFrame(loop);
+}
+render();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
